@@ -22,3 +22,4 @@ adapters*
 *.R1.*
 *.R2.*
 *.singles.*
+*.log
