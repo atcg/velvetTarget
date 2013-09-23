@@ -182,9 +182,10 @@ perl velvetTarget.pl --R1 <file> --R2 <file> --singles <file> --from \
 <int> --to <int> --out <file> --probes <file>
 
  Options:
+   -name=s          Name to be used as prefix for directories, etc...
    -R1=s            R1 reads file
    -R2=s            R2 reads file
-   -singles=s       Singletons and joined reads file
+   -adapters=s      Fasta file containing the adapters to trim
    -from=i          Starting kmer value (default 19)
    -to=i            Ending kmer value (default 201)
    -out=s           Log file name
