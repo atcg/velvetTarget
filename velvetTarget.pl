@@ -31,23 +31,23 @@ use Bio::SearchIO;
 my $help = 0;
 my $miSeq = 0;
 my $name;
+my $adapterFile;
 my $R1file;
 my $R2file;
-my $singlesFile;
 my $fromK = 19; #default starting Kmer value is 19
 my $toK = 201; #default ending emer value is 201
-my $phredBase = 33; #defaults to phred33 quality scores
 my $probes;
 my $outFile;
-my $usage = "Usage: perl velvetTarget.pl -i <infile.txt> -o <outfile.txt>\n";
+
+#Print out command used to run script:
+print "perl " . $0 . " ";foreach my $Argy (@ARGV) {print $Argy . " ";}print "\n\n\n";
 
 GetOptions  ("name=s"           => \$name,
+             "adapters=s"       => \$adapterFile,
              "R1=s"             => \$R1file,
              "R2=s"             => \$R2file,
-             "singles=s"        => \$singlesFile,
              "from=i"           => \$fromK,
              "to=i"             => \$toK,
-             "phred=i"          => \$phredBase,
              "out=s"            => \$outFile,
              "probes|targets=s" => \$probes,
              "miseq"            => \$miSeq,
@@ -55,7 +55,7 @@ GetOptions  ("name=s"           => \$name,
 
 pod2usage(-exitval => 0, -verbose => 2, -noperldoc => 1) if $help;
 
-if ((!$name) or (!$R1file) or (!$R2file) or (!$singlesFile) or (!$fromK) or (!$toK) or (!$outFile) or (!$probes)) {
+if ((!$name) or (!$adapterFile) or (!$R1file) or (!$R2file) or (!$fromK) or (!$toK) or (!$outFile) or (!$probes)) {
     pod2usage(-exitval => 0, -verbose => 2, -noperldoc => 1);
 }
 if (($fromK % 2 != 1) or ($toK % 2 != 1)) {
@@ -63,6 +63,30 @@ if (($fromK % 2 != 1) or ($toK % 2 != 1)) {
     pod2usage(-exitval => 0, -verbose => 2, -noperldoc => 1);
 }
 
+my $scytheR1out = $name . ".R1.scythe";
+my $scytheR2out = $name . ".R2.scythe";
+system("scythe -a $adapterFile $R1file -q sanger -o $scytheR1out");
+system("scythe -a $adapterFile $R2file -q sanger -o $scytheR2out");
+
+my $sickleR1out = $name . ".R1.sickle";
+my $sickleR2out = $name . ".R2.sickle";
+my $sickleIndOut = $name . ".singles.sickle";
+system("sickle pe -f $scytheR1out -r $scytheR2out -t sanger -o $sickleR1out -p $sickleR2out -s $sickleIndOut");
+unlink $scytheR1out;
+unlink $scytheR2out;
+
+# Fastq-join
+my $joined = $name . "fqj.join.fastq";
+my $R1_postjoin = $name . "fqj.join.fastq";
+my $R2_postjoin = $name . "fqj.join.fastq";
+system("fastq-join -v ' ' -m 10 $sickleR1out $sickleR2out -o $name.fqj.%.fastq");
+
+my $singlesFile = $name . "singles_and_joined.clean.fastq"; #created by concatenating sickle singletons and merged reads from fastq-join
+system("cat $joined $sickleIndOut > $singlesFile");
+unlink $sickleR1out;
+unlink $sickleR2out;
+unlink $sickleIndOut;
+unlink $joined;
 
 # Run velveth for all odd numbers between the specified kmer values
 my @kmer_choices = grep {$_ % 2 == 1} $fromK..$toK;
@@ -76,10 +100,10 @@ foreach my $kmer (@kmer_choices) {
     my $blastStatsLog = $velvet_dir_name . "/$blastOutName" . "_blastStats.txt";
     
     if ($miSeq) {
-        system("velveth $velvet_dir_name $kmer -short -fastq $singlesFile -longPaired -separate -fastq $R1file $R2file");
+        system("velveth $velvet_dir_name $kmer -short -fastq $singlesFile -longPaired -separate -fastq $R1_postjoin $R2_postjoin");
         system("velvetg $velvet_dir_name -exp_cov auto -cov_cutoff auto");
     } else {
-        system("velveth $velvet_dir_name $kmer -short -fastq $singlesFile -shortPaired -separate -fastq $R1file $R2file");
+        system("velveth $velvet_dir_name $kmer -short -fastq $singlesFile -shortPaired -separate -fastq $R1_postjoin $R2_postjoin");
         system("velvetg $velvet_dir_name -exp_cov auto -cov_cutoff auto");
     }
     system("makeblastdb -in $velvet_dir_name/contigs.fa -dbtype nucl -out $velvet_dir_name/$dbName");
@@ -145,18 +169,6 @@ foreach my $kmer (@kmer_choices) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 #Documentation
 __END__
 
@@ -167,7 +179,7 @@ velvetTarget.pl
 =head1 SYNOPSIS 
 
 perl velvetTarget.pl --R1 <file> --R2 <file> --singles <file> --from \
-<int> --to <int> --phred <int> --out <file> --probes <file>
+<int> --to <int> --out <file> --probes <file>
 
  Options:
    -R1=s            R1 reads file
@@ -175,7 +187,6 @@ perl velvetTarget.pl --R1 <file> --R2 <file> --singles <file> --from \
    -singles=s       Singletons and joined reads file
    -from=i          Starting kmer value (default 19)
    -to=i            Ending kmer value (default 201)
-   -phred=i         Phred quality scoring (default = 33)
    -out=s           Log file name
    -probes=s        A fasta file containing the probes or target regions
    -miseq           Include this flag if you have MiSeq reads over 200bp
