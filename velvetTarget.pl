@@ -25,61 +25,93 @@ use strict;
 use warnings;
 use Getopt::Long;
 use Pod::Usage;
-my $man = 0;
+
 my $help = 0;
-
-
+my $miSeq = 0;
+my $name;
 my $R1file;
 my $R2file;
 my $singlesFile;
-my $fromK = 19;
-my $toK = 201;
+my $fromK = 19; #default starting Kmer value is 19
+my $toK = 201; #default ending emer value is 201
 my $phredBase = 33; #defaults to phred33 quality scores
 my $outFile;
 my $usage = "Usage: perl velvetTarget.pl -i <infile.txt> -o <outfile.txt>\n";
 
-GetOptions  ("R1=s"      => \$R1file,
+GetOptions  ("name=s"    => \$name,
+             "R1=s"      => \$R1file,
              "R2=s"      => \$R2file,
              "singles=s" => \$singlesFile,
              "from=i"    => \$fromK,
              "to=i"      => \$toK,
              "phred=i"   => \$phredBase,
              "out=s"     => \$outFile,
+             "miseq"     => \$miSeq,
              "help|man"  => \$help,) || pod2usage(2);
 
 pod2usage(-exitval => 0, -verbose => 2, -noperldoc => 1) if $help;
 
-
-# if (!defined $R1file) {
-#     print "Must supply R1 file name.\n";
-# 
-# } elsif (!defined $R2file) {
-#     print "Must supply R2 file name.\n";
-# 
-# } elsif (!defined $singlesFile) {
-#     print "Must supply singletons file name.\n";
-# } elsif (!defined $fromK) {
-#     print "Must supply starting K value (--from).\n";
-# } elsif (!defined $toK) {
-#     print "Must supply finishing K value (--to).\n";
-# } elsif (!defined $outFile) {
-#     print "Must supply output file name.\n";
-# }
-
-
-if ((!$R1file) or (!$R2file) or (!$singlesFile) or (!$fromK) or (!$toK) or (!$outFile)) {
+if ((!$name) or (!$R1file) or (!$R2file) or (!$singlesFile) or (!$fromK) or (!$toK) or (!$outFile)) {
+    pod2usage(-exitval => 0, -verbose => 2, -noperldoc => 1);
+}
+if (($fromK % 2 != 1) or ($toK % 2 != 1)) {
+    print "\n***Kmer value bounds (--from and --to) must both be odd integers.***\n\n";
     pod2usage(-exitval => 0, -verbose => 2, -noperldoc => 1);
 }
 
 
 
 
+# Run velveth for all odd numbers between the specified kmer values
+my @kmer_choices = grep {$_ % 2 == 1} $fromK..$toK;
 
+foreach my $kmer (@kmer_choices) {
+    my $velvet_dir_name = $name . "_" . $kmer . "_velvet";
+    my $dbName = $name . "_" . $kmer;
+    if ($miSeq) {
+        system("velveth $velvet_dir_name $kmer -short -fastq $singlesFile -longPaired -separate -fastq $R1file $R2file");
+        system("velvetg $velvet_dir_name -exp_cov auto -cov_cutoff auto");
+    } else {
+        system("velveth $velvet_dir_name $kmer -short -fastq $singlesFile -shortPaired -separate -fastq $R1file $R2file");
+        system("velvetg $velvet_dir_name -exp_cov auto -cov_cutoff auto");
+    }
+    system("makeblastdb -in $velvet_dir_name/contigs.fa -dbtype nucl -out $velvet_dir_name/$dbName");        
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Documentation
 __END__
 
-=head1
+=head1 NAME
 velvetTarget.pl
-
 
 =head1 SYNOPSIS 
 
@@ -94,13 +126,23 @@ perl velvetTarget.pl --R1 <file> --R2 <file> --singles <file> --from \
    -to=i            Ending kmer value (default 201)
    -phred=i         Phred quality scoring (default = 33)
    -out=s           Log file name
+   -miseq           Include this flag if you have MiSeq reads over 200bp
    -help|man        documentation
 
 
 =head1 DESCRIPTION
 
-Choosing the right kmer value is critical for de novo assembly of contigs from next generation sequencing, but this is difficult. This task is easier for genome reconstruction, as the goal is usually to assemble the longest contigs possible (VelvetOptimiser.pl is great for this). For target enrichment experiments, however, the goal is rather to recover as many of the targets as completely as possible.
+Choosing the right kmer value is critical for de novo assembly of
+contigs from next generation sequencing, but this is difficult. This
+task is easier for genome reconstruction, as the goal is usually to
+assemble the longest contigs possible (VelvetOptimiser.pl is great for
+this). For target enrichment experiments, however, the goal is rather to
+recover as many of the targets as completely as possible.
 
-This script attempts to find the k value that achieves this. Instead of basing the choice of k off of summary statistics of the assembled contigs themselves, it rather blasts the baits or target regions against the assembly, and returns the k value and assembly that recovers the most targets the most completely. 
+This script attempts to find the k value that achieves this. Instead of
+basing the choice of k off of summary statistics of the assembled
+contigs themselves, it rather blasts the baits or target regions against
+the assembly, and returns the k value and assembly that recovers the
+most targets the most completely. 
 
 =cut
