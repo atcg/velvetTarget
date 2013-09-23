@@ -25,7 +25,7 @@ use strict;
 use warnings;
 use Getopt::Long;
 use Pod::Usage;
-use File::Basename qw(fileparse);
+use File::Basename qw(basename);
 use Bio::SearchIO;
 
 my $help = 0;
@@ -76,9 +76,9 @@ unlink $scytheR1out;
 unlink $scytheR2out;
 
 # Fastq-join
-my $joined = $name . "fqj.join.fastq";
-my $R1_postjoin = $name . "fqj.join.fastq";
-my $R2_postjoin = $name . "fqj.join.fastq";
+my $joined = $name . ".fqj.join.fastq";
+my $R1_postjoin = $name . ".fqj.un1.fastq";
+my $R2_postjoin = $name . ".fqj.un2.fastq";
 system("fastq-join -v ' ' -m 10 $sickleR1out $sickleR2out -o $name.fqj.%.fastq");
 
 my $singlesFile = $name . "singles_and_joined.clean.fastq"; #created by concatenating sickle singletons and merged reads from fastq-join
