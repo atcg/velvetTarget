@@ -27,6 +27,7 @@ use Getopt::Long;
 use Pod::Usage;
 use File::Basename qw(basename);
 use Bio::SearchIO;
+use Statistics::R;
 
 my $help = 0;
 my $miSeq = 0;
@@ -91,6 +92,10 @@ unlink $joined;
 # Run velveth for all odd numbers between the specified kmer values
 my @kmer_choices = grep {$_ % 2 == 1} $fromK..$toK;
 my %blastingStats; # Holds information regarding the number of targets matching contigs and completeness of match
+my @targets_with_hits_for_R;
+my @targets_with_one_hit_for_R;
+my @targets_with_one_HSP_for_R;
+my @targets_nested_in_contig_for_R;
 
 foreach my $kmer (@kmer_choices) {
     my $velvet_dir_name = $name . "_" . $kmer . "_velvet";
@@ -141,7 +146,7 @@ foreach my $kmer (@kmer_choices) {
                     }            
                 }       
             }   
-        }
+        }                  
     }
     open(my $STATSFH, ">", $blastStatsLog) or die "Couldn't create the file to store the blast stats.\n";
     print $STATSFH "Number of target regions: " . $blastIO->result_count() . ".\n";
@@ -157,12 +162,41 @@ foreach my $kmer (@kmer_choices) {
     unlink "$velvet_dir_name/PreGraph";
     unlink "$velvet_dir_name/Sequences";
     unlink "$velvet_dir_name/Roadmaps";
+    
+    # The maximum number of targets (ymax in the graph) should be $blastIO->result_count();
+    # Once done processing, there should be ($toK-$fromK)/2 values along the x-axis, which are elements of the arrays below
+    push (@targets_with_hits_for_R, $blastingStats{'targets_with_hits'});
+    push (@targets_with_one_hit_for_R, $blastingStats{'targets_with_one_hit'});
+    push (@targets_with_one_HSP_for_R, $blastingStats{'targets_with_one_hsp'});
+    push (@targets_nested_in_contig_for_R, $blastingStats{'targets_nested_within_contig'});
 }
 unlink $singlesFile;
 unlink $R1_postjoin;
 unlink $R2_postjoin;
 
 
+# Create plots using R
+my $plotsFileName = $name . "_plots.jpg";
+
+my $R = Statistics::R->new();
+$R->start();
+$R->run(q`library("Cairo")`);
+
+$R->set('x',\@kmer_choices);
+$R->set('yHits', \@targets_with_hits_for_R);
+$R->set('yOneHit', \@targets_with_one_hit_for_R);
+$R->set('yOneHSP', \@targets_with_one_HSP_for_R);
+$R->set('yNested', \@targets_nested_in_contig_for_R);
+
+$R->run(qq`CairoJPEG("$plotsFileName")`);
+$R->run(q`par(mfrow=c(2,2))`);
+$R->run(q`plot(x,yHits,type="l",lwd=5,col="blue",xlab="kmer value",ylab="Number of targets",main="Targets with matching contigs")`);
+$R->run(q`plot(x,yOneHit,type="l",lwd=5,col="blue",xlab="kmer value",ylab="Number of targets",main="Targets with ONE matching contig")`);
+$R->run(q`plot(x,yOneHSP,type="l",lwd=5,col="blue",xlab="kmer value",ylab="Number of targets",main="Targets with ONE matching HSP")`);
+$R->run(q`plot(x,yNested,type="l",lwd=5,col="blue",xlab="kmer value",ylab="Number of targets",main="Targets WITHIN a contig")`);
+$R->run(q`dev.off()`);
+
+$R->stop();
 
 
 
