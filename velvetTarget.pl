@@ -157,12 +157,10 @@ foreach my $kmer (@kmer_choices) {
     unlink "$velvet_dir_name/PreGraph";
     unlink "$velvet_dir_name/Sequences";
     unlink "$velvet_dir_name/Roadmaps";
-    unlink $singlesFile;
-    unlink $R1_postjoin;
-    unlink $R2_postjoin;
-    
 }
-
+unlink $singlesFile;
+unlink $R1_postjoin;
+unlink $R2_postjoin;
 
 
 
