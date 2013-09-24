@@ -106,6 +106,14 @@ foreach my $kmer (@kmer_choices) {
         system("velveth $velvet_dir_name $kmer -short -fastq $singlesFile -shortPaired -separate -fastq $R1_postjoin $R2_postjoin");
         system("velvetg $velvet_dir_name -exp_cov auto -cov_cutoff auto");
     }
+    unlink "$velvet_dir_name/Graph2";
+    unlink "$velvet_dir_name/LastGraph";
+    unlink "$velvet_dir_name/PreGraph";
+    unlink "$velvet_dir_name/Sequences";
+    unlink "$velvet_dir_name/Roadmaps";
+    unlink $singlesFile;
+    unlink $R1_postjoin;
+    unlink $R2_postjoin;
     system("makeblastdb -in $velvet_dir_name/contigs.fa -dbtype nucl -out $velvet_dir_name/$dbName");
     
     # Blast targets against assemblies
