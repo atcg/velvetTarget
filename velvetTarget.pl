@@ -178,8 +178,8 @@ velvetTarget.pl
 
 =head1 SYNOPSIS 
 
-perl velvetTarget.pl --R1 <file> --R2 <file> --singles <file> --from \
-<int> --to <int> --out <file> --probes <file>
+perl velvetTarget.pl --R1 <file> --R2 <file> --name <string> --from <int> \
+--to <int> --adapters <file> --out <file> --probes <file>
 
  Options:
    -name=s          Name to be used as prefix for directories, etc...
