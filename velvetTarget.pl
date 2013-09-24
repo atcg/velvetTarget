@@ -38,7 +38,6 @@ my $R2file;
 my $fromK = 19; #default starting Kmer value is 19
 my $toK = 201; #default ending emer value is 201
 my $probes;
-my $outFile;
 
 #Print out command used to run script:
 print "perl " . $0 . " ";foreach my $Argy (@ARGV) {print $Argy . " ";}print "\n\n\n";
@@ -49,14 +48,14 @@ GetOptions  ("name=s"           => \$name,
              "R2=s"             => \$R2file,
              "from=i"           => \$fromK,
              "to=i"             => \$toK,
-             "out=s"            => \$outFile,
              "probes|targets=s" => \$probes,
              "miseq"            => \$miSeq,
              "help|man"         => \$help,) || pod2usage(2);
 
 pod2usage(-exitval => 0, -verbose => 2, -noperldoc => 1) if $help;
 
-if ((!$name) or (!$adapterFile) or (!$R1file) or (!$R2file) or (!$fromK) or (!$toK) or (!$outFile) or (!$probes)) {
+if ((!$name) or (!$adapterFile) or (!$R1file) or (!$R2file) or (!$fromK)
+    or (!$toK) or (!$probes)) {
     pod2usage(-exitval => 0, -verbose => 2, -noperldoc => 1);
 }
 if (($fromK % 2 != 1) or ($toK % 2 != 1)) {
@@ -82,7 +81,9 @@ my $R1_postjoin = $name . ".fqj.un1.fastq";
 my $R2_postjoin = $name . ".fqj.un2.fastq";
 system("fastq-join -v ' ' -m 10 $sickleR1out $sickleR2out -o $name.fqj.%.fastq");
 
-my $singlesFile = $name . ".singles_and_joined.clean.fastq"; #created by concatenating sickle singletons and merged reads from fastq-join
+my $singlesFile = $name . ".singles_and_joined.clean.fastq"; #created by concatenating
+                                                             #sickle singletons and
+                                                             #merged reads from fastq-join
 system("cat $joined $sickleIndOut > $singlesFile");
 unlink $sickleR1out;
 unlink $sickleR2out;
@@ -91,7 +92,8 @@ unlink $joined;
 
 # Run velveth for all odd numbers between the specified kmer values
 my @kmer_choices = grep {$_ % 2 == 1} $fromK..$toK;
-my %blastingStats; # Holds information regarding the number of targets matching contigs and completeness of match
+my %blastingStats; # Holds information regarding the number of targets matching
+                   # contigs and completeness of match
 my @targets_with_hits_for_R;
 my @targets_with_one_hit_for_R;
 my @targets_with_one_HSP_for_R;
@@ -124,13 +126,17 @@ foreach my $kmer (@kmer_choices) {
     $blastingStats{'targets_with_one_hit'} = 0;
     # 3. How many targets with a single hit have exactly one HSP when blasted against the assembly?
     $blastingStats{'targets_with_one_hsp'} = 0;
-    # 4. How many targets with a single hsp are matched to at least 98% of their length (i.e. are nested within a contig with overlap)?
-    # Note this measure might need tweaking. For instance, if the first basepair of the query sequence is mismatched, but all remaining
-    # basepairs are a match, does blast chop off the first basepair and report the alignment as, say 119bp out of a 120bp query. This could be
-    # misleading if the first or last base pairs are simply mutations from the query.
+    # 4. How many targets with a single hsp are matched to at least 98% of their
+    # length (i.e. are nested within a contig with overlap)? Note this measure
+    # might need tweaking. For instance, if the first basepair of the query sequence
+    # is mismatched, but all remaining basepairs are a match, does blast chop off
+    # the first basepair and report the alignment as, say 119bp out of a 120bp query.
+    # This could be misleading if the first or last base pairs are simply mutations
+    # from the query.
     $blastingStats{'targets_nested_within_contig'} = 0;
 
-    my $blastIO = Bio::SearchIO->new(-format => 'blast', -file => "$velvet_dir_name/$blastOutName");
+    my $blastIO = Bio::SearchIO->new(-format => 'blast',
+                                     -file => "$velvet_dir_name/$blastOutName");
     while (my $blastResult = $blastIO->next_result()) {
         if ($blastResult->num_hits() > 0) {
             $blastingStats{'targets_with_hits'}++;
@@ -140,7 +146,12 @@ foreach my $kmer (@kmer_choices) {
                     if ($hit->num_hsps() == 1) {
                         $blastingStats{'targets_with_one_hsp'}++;
                         my $hsp = $hit->next_hsp();
-                        if ((($hsp->length('total') / $blastResult->query_length()) > 0.98) and ($hsp->start('subject') != 1) and ($hsp->end('subject') != 1)) { #try changing 'total' to 'hit' in the length call to see what happens
+                        if ((($hsp->length('total') / $blastResult->query_length()) > 0.98)
+                            and ($hsp->start('subject') != 1)
+                            and ($hsp->end('subject') != 1)) { #try changing
+                                                               #'total' to 'hit'
+                                                               #in the length call
+                                                               #to see what happens
                             $blastingStats{'targets_nested_within_contig'}++
                         }
                     }            
@@ -150,10 +161,14 @@ foreach my $kmer (@kmer_choices) {
     }
     open(my $STATSFH, ">", $blastStatsLog) or die "Couldn't create the file to store the blast stats.\n";
     print $STATSFH "Number of target regions: " . $blastIO->result_count() . ".\n";
-    print $STATSFH "Number of target regions with hits: $blastingStats{'targets_with_hits'}. (" . ((($blastingStats{'targets_with_hits'})/($blastIO->result_count))*100) . "% of total)\n";
-    print $STATSFH "Number of target regions with ONE hit: $blastingStats{'targets_with_one_hit'} (" . ((($blastingStats{'targets_with_one_hit'})/($blastIO->result_count))*100) . "% of total)\n";
-    print $STATSFH "Number of target regions with ONE HSP: $blastingStats{'targets_with_one_hsp'} (" . ((($blastingStats{'targets_with_one_hsp'})/($blastIO->result_count))*100) . "% of total)\n";
-    print $STATSFH "Number of targets with at least 98% of their length within a contig: $blastingStats{'targets_nested_within_contig'} (" . ((($blastingStats{'targets_nested_within_contig'})/($blastIO->result_count))*100) . "% of total)\n";
+    print $STATSFH "Number of target regions with hits: $blastingStats{'targets_with_hits'}. ("
+        . ((($blastingStats{'targets_with_hits'})/($blastIO->result_count))*100) . "% of total)\n";
+    print $STATSFH "Number of target regions with ONE hit: $blastingStats{'targets_with_one_hit'} ("
+        . ((($blastingStats{'targets_with_one_hit'})/($blastIO->result_count))*100) . "% of total)\n";
+    print $STATSFH "Number of target regions with ONE HSP: $blastingStats{'targets_with_one_hsp'} ("
+        . ((($blastingStats{'targets_with_one_hsp'})/($blastIO->result_count))*100) . "% of total)\n";
+    print $STATSFH "Number of targets with at least 98% of their length within a contig: $blastingStats{'targets_nested_within_contig'} ("
+        . ((($blastingStats{'targets_nested_within_contig'})/($blastIO->result_count))*100) . "% of total)\n";
     
     close($STATSFH) or die "Can't close blast stats summary file handle.\n";
     
@@ -164,7 +179,8 @@ foreach my $kmer (@kmer_choices) {
     unlink "$velvet_dir_name/Roadmaps";
     
     # The maximum number of targets (ymax in the graph) should be $blastIO->result_count();
-    # Once done processing, there should be ($toK-$fromK)/2 values along the x-axis, which are elements of the arrays below
+    # Once done processing, there should be ($toK-$fromK)/2 values along the x-axis,
+    # which are elements of the arrays below
     push (@targets_with_hits_for_R, $blastingStats{'targets_with_hits'});
     push (@targets_with_one_hit_for_R, $blastingStats{'targets_with_one_hit'});
     push (@targets_with_one_HSP_for_R, $blastingStats{'targets_with_one_hsp'});
@@ -197,13 +213,6 @@ $R->run(q`plot(x,yNested,type="l",lwd=5,col="blue",xlab="kmer value",ylab="Numbe
 $R->run(q`dev.off()`);
 
 $R->stop();
-
-
-
-
-
-
-
 
 
 
