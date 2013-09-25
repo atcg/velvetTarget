@@ -254,7 +254,7 @@ __END__
 
 =head1 NAME
 
-velvetTargeBatch.pl
+velvetTargetBatch.pl
 
 =head1 SYNOPSIS 
 

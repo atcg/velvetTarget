@@ -274,33 +274,32 @@ __END__
 
 =head1 NAME
 
-velvetTargeBatch.pl
+velvetTargetThreaded.pl
 
 =head1 SYNOPSIS 
 
-perl velvetTargetBatch.pl --config <file> --from <int> --to <int>
+perl velvetTargetBatch.pl --config <file> --from <int> --to <int> --threads <int>
 
  Options:
    -config=s        
    -from=i          Starting kmer value (default 19)
    -to=i            Ending kmer value (default 201)
+   -threads=i       Number of simultaneous threads to run (default=4)
    -miseq           Include this flag if you have MiSeq reads over 200bp
    -help|man        documentation
 
 
 =head1 DESCRIPTION
 
-Choosing the right kmer value is critical for de novo assembly of
-contigs from next generation sequencing, but this is difficult. This
-task is easier for genome reconstruction, as the goal is usually to
-assemble the longest contigs possible (VelvetOptimiser.pl is great for
-this). For target enrichment experiments, however, the goal is rather to
-recover as many of the targets as completely as possible.
-
-This script attempts to find the k value that achieves this. Instead of
-basing the choice of k off of summary statistics of the assembled
-contigs themselves, it rather blasts the baits or target regions against
-the assembly, and returns the k value and assembly that recovers the
+This script attempts to find the best kmer value in velvet for sequence capture
+experiments. Instead of basing the choice of k off of summary statistics of the
+assembled contigs themselves, it rather blasts the baits or target regions against
+the assembly, and finds the k values and assembly that recovers the
 most targets the most completely.
+
+This is the multi-core version. Set --threads according to the number of processors
+and amount of RAM on the machine you're using. It defaults to running four threads
+at once (so you'll end up having four instances of velvet running simultaneously
+on four different samples if you don't change this parameter)
 
 =cut
