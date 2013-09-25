@@ -80,7 +80,6 @@ print "********** End Parameters **********\n";
 
 print "********** Ensuring all files in config file exist: **********\n\n";
 foreach my $i (0..(scalar(@R1s)-1)) {
-    print "Testing group $i from config file";
     unless (-e $R1s[$i] and -e $R2s[$i] and -e $adapterFiles[$i] and -e $probesFiles[$i]) {
         die "Stopping because one of the following files does not exist: $R1s[$i] $R2s[$i] $adapterFiles[$i] $probesFiles[$i]\n";
     }
@@ -90,7 +89,7 @@ print "********** Finished ensuring all files in config file exist: **********\n
 
 # Run assembly, blasting, and blast report processing using forks
 print "Starting to run fork assembly jobs.\n\n";
-my $forkManager = new Parallel::ForkManger($thread_max);
+my $forkManager = new Parallel::ForkManager($thread_max);
 
 foreach my $forky (0..(scalar(@R1s)-1)) {
     $forkManager->start and next;
