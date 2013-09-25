@@ -28,7 +28,7 @@ use Pod::Usage;
 use File::Basename qw(basename);
 use Bio::SearchIO;
 use Statistics::R;
-use threads;
+use Parallel::ForkManager;
 
 my $thread_max = 4; #default to running four threads
 my $help = 0;
@@ -36,6 +36,8 @@ my $miSeq = 0;
 my $fromK = 19; #default starting Kmer value is 19
 my $toK = 201; #default ending emer value is 201
 my $config;
+
+
 
 #Print out command used to run script:
 print "perl " . $0 . " ";foreach my $Argy (@ARGV) {print $Argy . " ";}print "\n\n\n";
@@ -85,16 +87,18 @@ foreach my $i (0..(scalar(@R1s)-1)) {
 }
 print "********** Finished ensuring all files in config file exist: **********\n\n";
 
-for (my $count = 0; $count <= (scalar(@R1s)-1); $count++) {
-    my $pid = fork();
-    if ($pid) {
-        print "pid is $pid, parent $$\n";
-    }
-    
-    
-    
-}
 
+# Run assembly, blasting, and blast report processing using forks
+print "Starting to run fork assembly jobs.\n\n";
+my $forkManager = new Parallel::ForkManger($thread_max);
+
+foreach my $forky (0..(scalar(@R1s)-1)) {
+    $forkManager->start and next;
+    ASSEMBLE($forky);
+    $forkManager->finish;
+}
+$forkManager->wait_all_children;
+print "Finished with all assemblies!\n\n";
 
 
 
